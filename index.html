@@ -1,583 +1,953 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <meta charset="UTF-8">
-  <title>Otwieranie paczek piłkarskich</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      background: #0a3d62;
-      color: white;
-      margin: 0;
-      padding: 0;
-    }
-    h1 {
-      margin-top: 20px;
-    }
-#battleContainer h2 {
-  width: 100%;
+<meta charset="UTF-8">
+<title>Karciana RPG</title>
+<style>
+body {
+  background: #111;
+  color: white;
+  font-family: Arial;
   text-align: center;
-  margin-top: 20px;
-  font-size: 28px;
 }
 
-#battleInventory .card {
-  position: relative;
-  width: 160px;
-  height: 240px;
+/* Ekrany */
+.screen { display: none; }
+.active { display: block; }
+
+/* Karty */
+.card {
+  width: 130px;
+  padding: 10px;
+  margin: 10px;
+  background: #222;
+  border-radius: 10px;
+  display: inline-block;
+  border: 2px solid #666;
+}
+.card img {
+  width: 100%;
+}
+.card[data-rarity="Basic"] { border-color: #444; }
+.card[data-rarity="Rare"] { border-color: #00ff88; }
+.card[data-rarity="Epic"] { border-color: #b300ff; }
+.card[data-rarity="Legendary"] { border-color: #ffd700; }
+.card[data-rarity="Mythic"] { border-color: #ff3333; }
+.card[data-rarity="Eternal"] { border-color: #8b00ff; }
+.card[data-rarity="Exclusive"] { border-color: orange; }
+
+.hp-bar-bg {
+  width: 100%;
+  height: 12px;
+  background: #444;
+  border-radius: 6px;
+  margin-top: 5px;
+}
+.hp-bar {
+  height: 12px;
+  background: red;
+  width: 100%;
+  border-radius: 6px;
 }
 
-#battleInventory .btn {
-  position: absolute;
-  bottom: 10px;
-  left: 50%;
-  transform: translateX(-50%);
+/* Walka */
+.battleArea {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 30px;
 }
-    .buttons {
-      margin-top: 20px;
-    }
-    .btn {
-      background: gold;
-      border: none;
-      padding: 15px 30px;
-      font-size: 20px;
-      border-radius: 10px;
-      cursor: pointer;
-      margin: 10px;
-    }
-    .cards-container, .inventory-container, .shop-container {
-      margin-top: 30px;
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: 15px;
-    }
-    .card {
-      width: 150px;
-      height: 220px;
-      border: 2px solid white;
-      border-radius: 10px;
-      background: #1e272e;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      font-size: 14px;
-      padding: 5px;
-    }
-    .card img {
-      max-width: 100%;
-      max-height: 100%;
-      border-radius: 8px;
-      margin-top: 5px;
-    }
-    .screen {
-      display: none;
-      width: 100%;
-      height: 100vh;
-      position: absolute;
-      top: 0;
-      left: 0;
-      background: #0a3d62;
-      overflow-y: auto;
-    }
-    .screen.active {
-      display: block;
-    }
-  </style>
+.hit {
+  animation: hitFlash 0.2s;
+}
+@keyframes hitFlash {
+  0% { filter: brightness(2); }
+  100% { filter: brightness(1); }
+}
+
+.button {
+  padding: 10px 20px;
+  margin: 10px;
+  cursor: pointer;
+  background: #333;
+  border: 2px solid white;
+  border-radius: 8px;
+}
+</style>
 </head>
 <body>
 
-  <!-- MENU -->
-  <div id="menuScreen" class="screen active">
-    <h1>⚽ Otwieranie paczek kart piłkarskich</h1>
-    <h2 id="coinDisplay">💵 0</h2>
-    <div class="buttons">
-      <button class="btn" onclick="showShop()">🛒 Sklep</button>
-      <button class="btn" onclick="showInventory()">📦 Inventory</button>
-      <button class="btn" onclick="resetInventory()">🔄 Reset gry</button>
-      <button class="btn" onclick="showBattle()">⚔ Tryb Pojedynków</button>
-    </div>
-    <div class="cards-container" id="cardsContainer"></div>
-  </div>
-
-  <!-- INVENTORY -->
-  <div id="inventoryScreen" class="screen">
-    <h1>📦 Inventory</h1>
-    <div class="inventory-container" id="inventoryContainer"></div>
-    <button class="btn" onclick="returnToMenu()">⬅ Powrót do menu</button>
-  </div>
-
-  <!-- SHOP -->
-  <div id="shopScreen" class="screen">
-    <h1>🛒 Sklep z paczkami</h1>
-    <div class="shop-container" id="shopContainer"></div>
-    <button class="btn" onclick="returnToMenu()">⬅ Powrót do menu</button>
-  </div>
-
-<!-- BATTLE -->
-<div id="battleScreen" class="screen">
-  <h1>⚔ Tryb Pojedynków</h1>
-  <h2 id="coinDisplayBattle">💵 0</h2>
-  <div id="battleInventory" class="inventory-container"></div>
-  <div id="battleContainer" style="display:flex; justify-content:center; gap:30px; margin-top:30px;"></div>
-  <button class="btn" onclick="returnToMenu()">⬅ Powrót do menu</button>
+<!-- ✅ EKRAN TWORZENIA POSTACI -->
+<div id="createScreen" class="screen active">
+  <h2>Wpisz nazwę użytkownika</h2>
+  <input type="text" id="playerName" placeholder="Nazwa">
+  <button class="button" onclick="createPlayer()">Start</button>
 </div>
 
-  <script>
-const cards = {
-  vinicius: {img: "Vinicius.png", name: "Vinicius", power: 16},
-  hm: {img: "Hm.png", name: "Hm", power: 19},
-  miros: {img: "Miros.png", name: "Miros", power: 24},
-  krajewski: {img: "Krajewski.png", name: "Krajewski", power: 24},
-  macron: {img: "Macron.png", name: "Macron", power: 25},
-  chaladaj: {img: "Chaładaj.png", name: "Chaładaj", power: 40},
-  enzzi: {img: "Enzzi.png", name: "Enzzi", power: 42},
-  mentzen: {img: "Mentzen.png", name: "Mentzen", power: 43},
-  holownia: {img: "Hołownia.png", name: "Hołownia", power: 43},
-  dalot: {img: "Dalot.png", name: "Dalot", power: 45},
-  biden: {img: "Biden.png", name: "Biden", power: 50},
-  mbappe: {img: "Mbappé.png", name: "Mbappé", power: 54},
-  donnarumma: {img: "Donnarumma.png", name: "Donnarumma", power: 54},
-  arquel: {img: "Arquel.png", name: "Arquel", power: 54},
-  ronaldo: {img: "Ronaldo.png", name: "Ronaldo", power: 56},
-  kumpel: {img: "Kumpel.png", name: "Kumpel", power: 56},
-  rietz: {img: "Rietz.png", name: "Rietz", power: 57},
-  lewandowski: {img: "Lewandowski.png", name: "Lewandowski", power: 58},
-  messi: {img: "Messi.png", name: "Messi", power: 58},
-  scholz: {img: "Scholz.png", name: "Scholz", power: 58},
-  doue: {img: "Doué.png", name: "Doué", power: 61},
-  neymar: {img: "Neymar.png", name: "Neymar", power: 65},
-  trump: {img: "Trump.png", name: "Trump", power: 65},
-  cumer: {img: "Cumer.png", name: "Cumer", power: 68},
-  braln: {img: "Brałn.png", name: "Brałn", power: 68},
-  gulczyk: {img: "Gulczyk.png", name: "Gulczyk", power: 68},
-  wojan: {img: "Wojan.png", name: "Wojan", power: 68},
-  palion: {img: "Palion.png", name: "Palion", power: 68},
-  putin: {img: "Putin.png", name: "Putin", power: 69},
-  szefcu: {img: "Szefcu.png", name: "Szefcu", power: 72},
-  busquets: {img: "Busquets.png", name: "Busquets", power: 75},
-  halland: {img: "Halland.png", name: "Halland", power: 75},
-  dembele: {img: "Dembele.png", name: "Dembele", power: 78},
-  yamal: {img: "Yamal.png", name: "Yamal", power: 78},
-  trzaskowski: {img: "Trzaskowski.png", name: "Trzaskowski", power: 79},
-  nawrocki: {img: "Nawrocki.png", name: "Nawrocki", power: 81},
-  eleven: {img: "Eleven.png", name: "Eleven", power: 85},
-  suárez: {img: "Suárez.png", name: "Suárez", power: 86},
-  tusk: {img: "Tusk.png", name: "Tusk", power: 86},
-  dizzowsky: {img: "Dizzowsky.png", name: "Dizzowsky", power: 86},
-  jasper: {img: "Jasper.png", name: "Jasper", power: 91},
-  jose: {img: "Arkadiojosze.png", name: "Jose", power: 98}
+<!-- ✅ LOBBY -->
+<div id="lobbyScreen" class="screen">
+  <h2>Witaj, <span id="nameDisplay"></span>!</h2>
+  <p>Coins: <span id="coinsDisplay"></span></p>
+
+  <button class="button" onclick="goInventory()">Ekwipunek</button>
+  <button class="button" onclick="enterShop()">Sklep</button>
+  <button class="button" onclick="enterFusion()">⚗️ Fuzje</button>
+  <button class="button" onclick="enterQuests()">🟠 Questy</button>
+  <button class="button" onclick="enterBattle()">⚔ Pojedynek</button>
+  <button class="button" onclick="enterSettings()">⚙ Ustawienia</button>
+</div>
+
+<!-- ✅ EKWIPUNEK -->
+<div id="inventoryScreen" class="screen">
+  <h2>Twoje karty</h2>
+  <div id="inventory"></div>
+
+  <h3>Twoja drużyna (max 3)</h3>
+  <div id="team"></div>
+
+  <button class="button" onclick="backToLobby()">Powrót</button>
+</div>
+
+<!-- ✅ FUZJE -->
+<div id="fusionScreen" class="screen">
+  <h2>⚗️ Fuzje Kart</h2>
+  <p>Połącz odpowiednie postacie, aby stworzyć nowe!</p>
+  <div id="fusionList"></div>
+  <button class="button" onclick="backToLobby()">Powrót</button>
+</div>
+
+<!-- ✅ QUESTY -->
+<div id="questScreen" class="screen">
+  <h2>🟠 Zadania (Questy)</h2>
+  <div id="questList"></div>
+  <button class="button" onclick="backToLobby()">Powrót</button>
+</div>
+
+<!-- ✅ USTAWIENIA -->
+<div id="settingsScreen" class="screen">
+  <h2>Ustawienia</h2>
+
+  <button class="button" onclick="resetGame()" style="background:#550000; border-color:red;">
+    🔥 RESETUJ CAŁĄ GRĘ
+  </button>
+
+  <p style="color:#ff5555; max-width:400px; margin:auto;">
+    Uwaga! Reset usuwa wszystkie karty, drużynę, monety i postać.  
+    Tego nie da się cofnąć!
+  </p>
+
+  <button class="button" onclick="backToLobby()">Powrót</button>
+</div>
+
+<!-- ✅ SKLEP -->
+<div id="shopScreen" class="screen">
+  <h2>🛒 Sklep</h2>
+
+  <div style="margin-bottom:20px;">
+    <p>💼 <b>Zwykła Paczka</b> – 100 Coins</p>
+    <p><small>54% Basic, 26% Rare, 15% Epic, 4% Legendary, 0.9% Mythic, 0.1% Eternal</small></p>
+    <button class="button" onclick="buyPack()">Kup zwykłą paczkę</button>
+  </div>
+
+  <div style="margin-bottom:20px;">
+    <p>🌟 <b>Super Pack</b> – 600 Coins</p>
+    <p><small>50% Rare, 30% Epic, 15% Legendary, 4.5% Mythic, 0.5% Eternal</small></p>
+    <button class="button" style="background:#224466;" onclick="buySuperPack()">Kup Super Pack</button>
+  </div>
+
+  <button class="button" onclick="backToLobby()">Powrót</button>
+</div>
+
+<!-- ✅ POJEDYNEK -->
+<div id="battleScreen" class="screen">
+  <h2>⚔ Pojedynek ⚔</h2>
+  <div class="battleArea">
+    <div id="playerSide"></div>
+    <div id="enemySide"></div>
+  </div>
+  <h3 id="battleLog"></h3>
+
+  <button class="button" onclick="backToLobby()">Powrót</button>
+</div>
+
+<script>
+
+let player = {
+  name: "",
+  coins: 0,
+  cards: [],
+  team: []
 };
 
-    // Paczki z różnymi % dropów
-    const packs = {
-      paczka1: {
-        name: "FC Barcelona",
-        pool: [
-          {card: cards.nawrocki, chance: 1},
-          {card: cards.yamal, chance: 4},
-          {card: cards.szefcu, chance: 7},
-          {card: cards.lewandowski, chance: 23},
-          {card: cards.chaladaj, chance: 65}
-        ]
-      },
-      
-      paczka2: {
-        name: "Bayern Munich",
-        pool: [
-          {card: cards.cumer, chance: 40},
-          {card: cards.mentzen, chance: 60}
-        ]
-      },
-      
-      paczka3: {
-        name: "Borussia Dortmund",
-        pool: [
-          {card: cards.trzaskowski, chance: 25},
-          {card: cards.putin, chance: 75}
-        ]
-      },
-      
-      paczka4: {
-        name: "Paris",
-        pool: [
-          {card: cards.dembele, chance: 1},
-          {card: cards.doue, chance: 9},
-          {card: cards.kumpel, chance: 25},
-          {card: cards.macron, chance: 65}
-        ]
-      },
-      
-      paczka5: {
-        name: "Luton Town F.C.",
-        pool: [
-          {card: cards.biden, chance: 100}
-        ]
-      },
-      
-      paczka6: {
-        name: "Brentford",
-        pool: [
-          {card: cards.scholz, chance: 100}
-        ]
-      },
-      
-      paczka7: {
-        name: "Intel Miami",
-        pool: [
-          {card: cards.suárez, chance: 8},
-          {card: cards.busquets, chance: 27},
-          {card: cards.messi, chance: 65}
-        ]
-      },
-      
-      paczka8: {
-        name: "Real Madrid",
-        pool: [
-          {card: cards.mbappe, chance: 18},
-          {card: cards.vinicius, chance: 82}
-        ]
-      },
-      
-      paczka9: {
-        name: "Santos",
-        pool: [
-          {card: cards.neymar, chance: 100}
-        ]
-      },
-      
-      paczka10: {
-        name: "Manchester Utd",
-        pool: [
-          {card: cards.jose, chance: 7},
-          {card: cards.dalot, chance: 93}
-        ]
-      },
-      
-      paczka11: {
-        name: "Atlético Madryt",
-        pool: [
-          {card: cards.dizzowsky, chance: 100}
-        ]
-      },
-      
-      paczka12: {
-        name: "Łks",
-        pool: [
-          {card: cards.eleven, chance: 100}
-        ]
-      },
-      
-      paczka13: {
-        name: "Arsenal",
-        pool: [
-          {card: cards.miros, chance: 70},
-          {card: cards.gulczyk, chance: 30}
-        ]
-      },
-      
-      paczka14: {
-        name: "Legia",
-        pool: [
-          {card: cards.jasper, chance: 1},
-          {card: cards.tusk, chance: 6},
-          {card: cards.palion, chance: 23},
-          {card: cards.holownia, chance: 70}
-        ]
-      },
-      
-      paczka15: {
-        name: "Manchester City",
-        pool: [
-          {card: cards.halland, chance: 5},
-          {card: cards.donnarumma, chance: 15},
-          {card: cards.enzzi, chance: 30},
-          {card: cards.hm, chance: 50}
-        ]
-      },
-      
-      paczka16: {
-        name: "Red Bull",
-        pool: [
-          {card: cards.trump, chance: 100}
-        ]
-      },
-      
-      paczka17: {
-        name: "Widzew",
-        pool: [
-          {card: cards.wojan, chance: 29},
-          {card: cards.krajewski, chance: 71}
-        ]
-      },
-      
-      paczka18: {
-        name: "Fulham",
-        pool: [
-          {card: cards.rietz, chance: 100}
-        ]
-      }
-    };
-    
-const packPrices = {
-  paczka1: 120,
-  paczka2: 250,
-  paczka3: 600,
-  paczka4: 100,
-  paczka5: 160,
-  paczka6: 500,
-  paczka7: 600,
-  paczka8: 70,
-  paczka9: 300,
-  paczka10: 5000,
-  paczka11: 1000,
-  paczka12: 990,
-  paczka13: 80,
-  paczka14: 230,
-  paczka15: 110,
-  paczka16: 300,
-  paczka17: 110,
-  paczka18: 240
-};
+const allCards = [
+  { name: "Acronix", hp: 13, damage: 2, speed: 0.5, super: null, img: "Acronix.png", rarity: "Basic" },
+  { name: "Alex", hp: 20, damage: 1, speed: 0.55, super: null, img: "Alex.png", rarity: "Basic" },
+  { name: "Allay", hp: 10, damage: 1, speed: 0.3, super: null, img: "Allay.png", rarity: "Basic" },
+  { name: "Bee", hp: 5, damage: 1, speed: 0.5, super: null, img: "Bee.png", rarity: "Basic" },
+  { name: "Chicken Jockey", hp: 24, damage: 4, speed: 0.9, super: null, img: "Chicken Jockey.png", rarity: "Basic" },
+  { name: "Freddy", hp: 30, damage: 6, speed: 1.3, super: null, img: "Freddy.png", rarity: "Basic" },
+  { name: "Gulczykowa", hp: 10, damage: 4, speed: 0.9, super: null, img: "Gulczykowa.png", rarity: "Basic" },
+  { name: "King", hp: 16, damage: 3, speed: 1.7, super: "AOE", img: "King.png", rarity: "Basic" },
+  { name: "Luz", hp: 10, damage: 1, speed: 0.5, super: null, img: "Luz.png", rarity: "Basic" },
+  { name: "Pink Sheep", hp: 10, damage: 3, speed: 0.9, super: null, img: "Pink Sheep.png", rarity: "Basic" },
+  { name: "Posuch", hp: 20, damage: 3, speed: 0.95, super: null, img: "Posuch.png", rarity: "Basic" },
+  { name: "Skeleton", hp: 20, damage: 5, speed: 1.0, super: null, img: "Skeleton.png", rarity: "Basic" },
+  { name: "Snow Golem", hp: 4, damage: 1, speed: 0.7, super: null, img: "Snow Golem.png", rarity: "Basic" },
+  { name: "Toy Bonnie", hp: 19, damage: 5, speed: 0.8, super: "AOE", img: "Toy Bonnie.png", rarity: "Basic" },
+  { name: "Vanessa", hp: 10, damage: 2, speed: 0.4, super: null, img: "Vanessa.png", rarity: "Basic" },
+  { name: "Wooly", hp: 12, damage: 2, speed: 0.75, super: null, img: "Wooly.png", rarity: "Basic" },
+  { name: "Zombie", hp: 20, damage: 3, speed: 0.95, super: null, img: "Zombie.png", rarity: "Basic" },
 
-let inventory = {};
-let savedCoins = localStorage.getItem("coins");
-let coins = savedCoins !== null ? parseInt(savedCoins) : 1000;
+  { name: "Albi", hp: 10, damage: 8, speed: 0.3, super: null, img: "Albi.png", rarity: "Rare" },
+  { name: "Arctic Fox", hp: 18, damage: 4, speed: 1.0, super: null, img: "Arctic Fox.png", rarity: "Rare" },
+  { name: "Baby Zombie", hp: 20, damage: 3, speed: 0.5, super: null, img: "Baby Zombie.png", rarity: "Rare" },
+  { name: "Balloon Boy", hp: 20, damage: 8, speed: 1.65, super: "Splash", img: "Balloon Boy.png", rarity: "Rare" },
+  { name: "Bonnie", hp: 30, damage: 6, speed: 1.0, super: "AOE", img: "Bonnie.png", rarity: "Rare" },
+  { name: "Chica", hp: 30, damage: 9, speed: 2.0, super: "Splash", img: "Chica.png", rarity: "Rare" },
+  { name: "Helpy", hp: 28, damage: 4, speed: 1.0, super: "AOE", img: "Helpy.png", rarity: "Rare" },
+  { name: "Spider Jockey", hp: 36, damage: 9, speed: 1.1, super: null, img: "Spider Jockey.png", rarity: "Rare" },
+  { name: "Spider Man", hp: 10, damage: 8, speed: 0.84, super: null, img: "Spider Man.png", rarity: "Rare" },
+  { name: "Tv Man", hp: 20, damage: 5, speed: 0.8, super: "AOE", img: "Tv Man.png", rarity: "Rare" },
+  { name: "Vaggie", hp: 22, damage: 8, speed: 1.5, super: null, img: "Vaggie.png", rarity: "Rare" },
 
-window.onload = () => {
-  const savedInventory = localStorage.getItem("inventory");
-  if (savedInventory) inventory = JSON.parse(savedInventory);
-  updateCoinsDisplay();
-  renderInventory(); 
-};
+  { name: "Afton", hp: 20, damage: 9, speed: 0.7, super: null, img: "Afton.png", rarity: "Epic" },
+  { name: "Arin", hp: 10, damage: 20, speed: 2.0, super: "Splash", img: "Arin.png", rarity: "Epic" },
+  { name: "Doey", hp: 42, damage: 8, speed: 1.5, super: "Splash", img: "Doey.png", rarity: "Epic" },
+  { name: "Enderman", hp: 40, damage: 3, speed: 1.0, super: null, img: "Enderman.png", rarity: "Epic" },
+  { name: "Foxy", hp: 30, damage: 7, speed: 0.7, super: null, img: "Foxy.png", rarity: "Epic" },
+  { name: "Han Solo", hp: 20, damage: 8, speed: 0.8, super: null, img: "Han Solo.png", rarity: "Epic" },
+  { name: "Hydreigon", hp: 30, damage: 3, speed: 0.8, super: "AOE", img: "Hydreigon.png", rarity: "Epic" },
+  { name: "Nightmare Chica", hp: 45, damage: 18, speed: 3.0, super: "Splash", img: "Nightmare Chica.png", rarity: "Epic" },
+  { name: "Marwowy", hp: 10, damage: 7, speed: 0.6, super: "Splash", img: "Marwowy.png", rarity: "Epic" },
+  { name: "Sonic", hp: 14, damage: 7, speed: 0.3, super: null, img: "Sonic.png", rarity: "Epic" },
+  { name: "The Knocer", hp: 20, damage: 12, speed: 0.85, super: null, img: "The Knocer.png", rarity: "Epic" },
+  { name: "Titan Luz", hp: 20, damage: 8, speed: 0.7, super: null, img: "Titan Luz.png", rarity: "Epic" },
 
-function updateCoinsDisplay() {
-  const displays = document.querySelectorAll("#coinDisplay, #coinDisplayBattle");
-  displays.forEach(el => {
-    if (el) el.textContent = "💵 " + coins;
-  });
-  localStorage.setItem("coins", coins);
+  { name: "Alastor", hp: 60, damage: 12, speed: 1.0, super: null, img: "Alastor.png", rarity: "Legendary" },
+  { name: "Anomaly", hp: 50, damage: 2, speed: 0.3, super: "AOE", img: "Anomaly.png", rarity: "Legendary" },
+  { name: "Colton Anomaly", hp: 50, damage: 14, speed: 1.0, super: null, img: "Colton Anomaly.png", rarity: "Legendary" },
+  { name: "Darth Vader", hp: 25, damage: 10, speed: 0.85, super: null, img: "Darth Vader.png", rarity: "Legendary" },
+  { name: "Huggy Wuggy", hp: 50, damage: 11, speed: 1.0, super: null, img: "Huggy Wuggy.png", rarity: "Legendary" },
+  { name: "Large Astro TV Man", hp: 32, damage: 8, speed: 0.6, super: "AOE", img: "Tv Man.png", rarity: "Legendary" },
+  { name: "Mimicer", hp: 50, damage: 14, speed: 1.0, super: null, img: "Mimicer.png", rarity: "Legendary" },
+  { name: "Shadow", hp: 16, damage: 5, speed: 0.2, super: null, img: "Shadow.png", rarity: "Legendary" },
+  { name: "Vox", hp: 60, damage: 7, speed: 0.75, super: "AOE", img: "Vox.png", rarity: "Legendary" },
+
+  { name: "DJ Vox", hp: 67, damage: 8, speed: 0.6, super: "AOE", img: "DJ Vox.png", rarity: "Mythic" },
+  { name: "R2 D2", hp: 46, damage: 1, speed: 0.15, super: "AOE", img: "R2 D2.png", rarity: "Mythic" },
+  { name: "The Man From The Shadow", hp: 40, damage: 20, speed: 1.0, super: null, img: "The Man From The Shadow.png", rarity: "Mythic" },
+  { name: "Warden", hp: 50, damage: 18, speed: 1.1, super: "Splash", img: "Warden.png", rarity: "Mythic" },
+  { name: "Zestial", hp: 60, damage: 15, speed: 1.0, super: null, img: "Zestial.png", rarity: "Mythic" },
+
+  { name: "H4CK3R", hp: 10, damage: 5, speed: 0.2, super: "AOE", img: "H4CK3R.png", rarity: "Eternal" },
+  { name: "Thanos", hp: 46, damage: 13, speed: 1.3, super: "Splash", img: "Thanos.png", rarity: "Eternal" },
+  { name: "The Deer", hp: 50, damage: 10, speed: 0.6, super: null, img: "The Deer.png", rarity: "Eternal" },
+
+  { name: "Bekin", hp: 21, damage: 2, speed: 1.2, super: "AOE", img: "Bekin.png", rarity: "Exclusive" },
+  { name: "Zombox", hp: 80, damage: 10, speed: 0.2, super: "AOE", img: "Zombox.png", rarity: "Exclusive" }
+];
+
+// === 🧪 DOSTĘPNE FUZJE ===
+const fusions = [
+  {
+    id: 1,
+    base1: "Vox",
+    base2: "Zombie",
+    result: { name: "Zombox", hp: 80, damage: 10, speed: 0.2, super: "AOE", img: "Zombox.png", rarity: "Exclusive" }
+  },
+  {
+    id: 2,
+    base1: "Bee",
+    base2: "King",
+    result: { name: "Bekin", hp: 21, damage: 2, speed: 1.2, super: "AOE", img: "Bekin.png", rarity: "Exclusive" }
+  },
+];
+
+function saveGame() {
+  const saveData = {
+    name: player.name,
+    coins: player.coins,
+    cards: player.cards,
+    team: player.team.map(c => c.name),
+    quests: quests.map(q => ({
+      id: q.id,
+      progress: q.progress,
+      completed: q.completed
+    }))
+  };
+  localStorage.setItem("save", JSON.stringify(saveData));
 }
 
-    function showInventory() {
-      document.getElementById("menuScreen").classList.remove("active");
-      document.getElementById("inventoryScreen").classList.add("active");
-      renderInventory();
-    }
+function loadGame() {
+  const data = localStorage.getItem("save");
+  if (!data) return;
 
-    function showShop() {
-      document.getElementById("menuScreen").classList.remove("active");
-      document.getElementById("shopScreen").classList.add("active");
-      renderShop();
-    }
+  const save = JSON.parse(data);
 
-    function returnToMenu() {
-      document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
-      document.getElementById("menuScreen").classList.add("active");
-    }
+  player.name = save.name;
+  player.coins = save.coins;
+  player.cards = save.cards || [];
 
-    function renderInventory() {
-      const inv = document.getElementById("inventoryContainer");
-      inv.innerHTML = "";
-      for (let card in inventory) {
-        const cardDiv = document.createElement("div");
-        cardDiv.classList.add("card");
+  player.team = (save.team || [])
+    .filter(name => allCards.some(c => c.name === name))
+    .map(name => {
+      const c = allCards.find(x => x.name === name);
+      return { ...c };
+    });
 
-        const img = document.createElement("img");
-        img.src = card;
-
-        const count = document.createElement("div");
-        count.textContent = "x" + inventory[card];
-
-        cardDiv.appendChild(img);
-        cardDiv.appendChild(count);
-        inv.appendChild(cardDiv);
+  if (save.quests && Array.isArray(save.quests)) {
+    save.quests.forEach(savedQ => {
+      const q = quests.find(q => q.id === savedQ.id);
+      if (q) {
+        q.progress = savedQ.progress;
+        q.completed = savedQ.completed;
       }
-    }
+    });
+  }
 
-function renderShop() {
-  const shop = document.getElementById("shopContainer");
-  shop.innerHTML = `<h2>Masz: 💵 ${coins}</h2>`;
+  document.getElementById("nameDisplay").textContent = player.name;
+  document.getElementById("coinsDisplay").textContent = player.coins;
 
-  for (let packKey in packs) {
-    const pack = packs[packKey];
-    const btn = document.createElement("button");
-    btn.classList.add("btn");
-    btn.textContent = `${pack.name} - 💵 ${packPrices[packKey]}`;
-    btn.onclick = () => {
-      if (coins >= packPrices[packKey]) {
-        coins -= packPrices[packKey];
-        localStorage.setItem("coins", coins);
-        updateCoinsDisplay();
-        renderShop(); 
-        openPack(pack);
-      } else {
-        alert("Nie masz wystarczająco 💵!");
-      }
-    };
-    shop.appendChild(btn);
+  renderInventory();
+  renderTeam();
+
+  // Jeśli gracz ma questy — odśwież ekran questów po wczytaniu
+  if (document.getElementById("questList")) {
+    renderQuests();
   }
 }
 
-function animatePackOpen(callback) {
-  const container = document.getElementById("cardsContainer");
-  container.innerHTML = "<h2>🎁 Otwieranie paczki...</h2>";
-  let dots = 0;
-  const loading = setInterval(() => {
-    dots = (dots + 1) % 4;
-    container.querySelector("h2").textContent = "🎁 Otwieranie paczki" + ".".repeat(dots);
-  }, 400);
-  setTimeout(() => {
-    clearInterval(loading);
-    callback();
-  }, 2000);
+function enterFusion() {
+  switchScreen("lobbyScreen", "fusionScreen");
+  renderFusions();
 }
 
-function openPack(pack) {
-  const container = document.getElementById("cardsContainer");
-  returnToMenu();
-  animatePackOpen(() => {
-    container.innerHTML = "";
-    for (let i = 0; i < 3; i++) {
-      const card = getRandomCard(pack.pool);
-      addToInventory(card.img);
-      const cardDiv = document.createElement("div");
-      cardDiv.classList.add("card");
-      const img = document.createElement("img");
-      img.src = card.img;
-      const label = document.createElement("div");
-      label.textContent = card.name;
-      cardDiv.appendChild(img);
-      cardDiv.appendChild(label);
-      container.appendChild(cardDiv);
-    }
-    updateCoinsDisplay();
+function renderFusions() {
+  const div = document.getElementById("fusionList");
+  div.innerHTML = "";
+
+  fusions.forEach(f => {
+    const have1 = player.cards.some(c => c.name === f.base1 && c.count > 0);
+    const have2 = player.cards.some(c => c.name === f.base2 && c.count > 0);
+
+    const el = document.createElement("div");
+    el.className = "card";
+    el.innerHTML = `
+      <strong>${f.base1} + ${f.base2}</strong><br>
+      = <b style="color:#00ff88;">${f.result.name}</b><br>
+      ${have1 && have2 ? "<button class='button' onclick='doFusion(" + f.id + ")'>Połącz</button>" : "<span style='color:#888;'>Brak wymaganych kart</span>"}
+    `;
+    div.appendChild(el);
   });
 }
 
-    function getRandomCard(pool) {
-      const total = pool.reduce((sum, item) => sum + item.chance, 0);
-      let rand = Math.random() * total;
-      for (let item of pool) {
-        if (rand < item.chance) {
-          return item.card;
-        }
-        rand -= item.chance;
-      }
-      return pool[pool.length - 1].card;
-    }
+function doFusion(id) {
+  const f = fusions.find(x => x.id === id);
+  if (!f) return;
 
-function showBattle() {
-  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
-  document.getElementById("battleScreen").classList.add("active");
-  renderBattleInventory();
-  updateCoinsDisplay();
-  document.getElementById("coinDisplayBattle").textContent = "💵 " + coins;
+  const have1 = player.cards.find(c => c.name === f.base1);
+  const have2 = player.cards.find(c => c.name === f.base2);
+
+  if (!have1 || !have2 || have1.count <= 0 || have2.count <= 0) {
+    alert("Nie masz wymaganych kart!");
+    return;
+  }
+
+  // usuń po 1 sztuce każdej z kart
+  have1.count--;
+  have2.count--;
+
+  // dodaj nową kartę
+  let existing = player.cards.find(c => c.name === f.result.name);
+  if (existing) existing.count++;
+  else {
+    player.cards.push({ ...f.result, count: 1 });
+    // jeśli chcesz, możesz też dodać nową kartę do allCards, jeśli chcesz mieć jej pełne dane w grze:
+    if (!allCards.some(c => c.name === f.result.name)) {
+      allCards.push(f.result);
+    }
+  }
+
+  alert(`⚗️ Powstała nowa karta: ${f.result.name}!`);
+  renderInventory();
+  renderFusions();
+  saveGame();
 }
 
-function renderBattleInventory() {
-  const container = document.getElementById("battleInventory");
-  container.innerHTML = "<h3>Wybierz kartę do walki:</h3>";
+// === 🟠 QUESTY ===
+const quests = [
+  {
+    id: 1,
+    title: "Wygraj 10 walk",
+    goal: 10,
+    progress: 0,
+    reward: { type: "coins", amount: 200 },
+    completed: false
+  },
+  {
+    id: 2,
+    title: "Kup 3 paczki kart",
+    goal: 3,
+    progress: 0,
+    reward: { type: "exclusiveCard", card: "Spider Man" },
+    completed: false
+  },
+  {
+    id: 3,
+    title: "Kup 25 paczki kart",
+    goal: 25,
+    progress: 0,
+    reward: { type: "exclusiveCard", card: "Thanos" },
+    completed: false
+  }
+];
 
-  for (let cardImg in inventory) {
-    const cardData = Object.values(cards).find(c => c.img === cardImg);
-    if (!cardData) continue;
+function enterQuests() {
+  switchScreen("lobbyScreen", "questScreen");
+  renderQuests();
+}
 
-    const cardDiv = document.createElement("div");
-    cardDiv.classList.add("card");
-    cardDiv.innerHTML = `
-      <img src="${cardData.img}">
-      <div>${cardData.name}</div>
-      <div>Power: ${cardData.power}</div>
-      <button class="btn" style="padding:5px; font-size:14px;">Walcz</button>
+function renderQuests() {
+  const div = document.getElementById("questList");
+  div.innerHTML = "";
+
+  quests.forEach(q => {
+    const el = document.createElement("div");
+    el.className = "card";
+    el.innerHTML = `
+      <h3>${q.title}</h3>
+      <p>Postęp: ${q.progress}/${q.goal}</p>
+      <p>Nagroda: ${
+        q.reward.type === "coins"
+          ? `${q.reward.amount} 💰`
+          : `🎴 ${q.reward.card}`
+      }</p>
+      ${q.completed ? "<b style='color:#00ff88;'>✔ Ukończono!</b>" : ""}
     `;
 
-    cardDiv.querySelector("button").onclick = () => startBattle(cardData);
-    container.appendChild(cardDiv);
-  }
-}
-
-function startBattle(playerCard) {
-  const container = document.getElementById("battleContainer");
-  container.innerHTML = "";
-
-  // losuj kartę przeciwnika
-  const opponentKeys = Object.keys(cards);
-  const opponentCard = cards[opponentKeys[Math.floor(Math.random() * opponentKeys.length)]];
-
-  // wyświetl karty
-  const playerDiv = document.createElement("div");
-  playerDiv.classList.add("card");
-  playerDiv.innerHTML = `<h3>Ty</h3><img src="${playerCard.img}"><p>${playerCard.name}</p><p>Power: ${playerCard.power}</p>`;
-
-  const opponentDiv = document.createElement("div");
-  opponentDiv.classList.add("card");
-  opponentDiv.innerHTML = `<h3>Przeciwnik</h3><img src="${opponentCard.img}"><p>${opponentCard.name}</p><p>Power: ${opponentCard.power}</p>`;
-
-  container.appendChild(playerDiv);
-  container.appendChild(opponentDiv);
-
-  // wynik walki
-  let resultText = "";
-
-  if (playerCard.power > opponentCard.power) {
-    // wygrana – nagroda = power karty
-    const reward = playerCard.power;
-    coins += reward;
-    resultText = `🏆 Wygrałeś! Otrzymujesz +${reward}💵`;
-  } else if (playerCard.power < opponentCard.power) {
-    // przegrana – tracisz 1 sztukę tej karty
-    if (inventory[playerCard.img] > 1) {
-      inventory[playerCard.img]--;
-    } else {
-      delete inventory[playerCard.img];
+    if (!q.completed && q.progress >= q.goal) {
+      const btn = document.createElement("button");
+      btn.className = "button";
+      btn.textContent = "Odbierz nagrodę";
+      btn.onclick = () => claimQuestReward(q.id);
+      el.appendChild(btn);
     }
-    resultText = `❌ Przegrałeś! Straciłeś jedną kartę (${playerCard.name}) 😢`;
+
+    div.appendChild(el);
+  });
+}
+
+function claimQuestReward(id) {
+  const q = quests.find(x => x.id === id);
+  if (!q || q.completed) return;
+
+  if (q.reward.type === "coins") {
+    player.coins += q.reward.amount;
+    alert(`💰 Otrzymano ${q.reward.amount} coins!`);
+  } else if (q.reward.type === "exclusiveCard") {
+    const card = allCards.find(c => c.name === q.reward.card);
+    if (card) {
+      let existing = player.cards.find(c => c.name === card.name);
+      if (existing) existing.count++;
+      else player.cards.push({ ...card, count: 1 });
+      alert(`🎴 Otrzymano kartę Exclusive: ${card.name}!`);
+    }
+  }
+
+  q.completed = true;
+  saveGame();
+  renderQuests();
+}
+
+// === Aktualizacja postępu questów ===
+function updateQuestProgress(type) {
+  quests.forEach(q => {
+    if (q.completed) return;
+
+    if (type === "winBattle" && q.title.includes("Wygraj")) {
+      q.progress++;
+    }
+    if (type === "buyPack" && q.title.includes("Kup")) {
+      q.progress++;
+    }
+    if (type === "collectCard" && q.title.includes("Zbierz")) {
+      q.progress = player.cards.length;
+    }
+  });
+  saveGame();
+}
+
+function getRandomRarity() {
+  const r = Math.random() * 100;
+
+  if (r < 54) return "Basic";        
+  if (r < 80) return "Rare";        
+  if (r < 95) return "Epic";       
+  if (r < 99) return "Legendary";  
+  if (r < 99.9) return "Mythic";      
+  return "Eternal";                    
+}
+
+function getSuperRarity() {
+  const r = Math.random() * 100;
+  if (r < 50) return "Rare";
+  if (r < 80) return "Epic";
+  if (r < 95) return "Legendary";
+  if (r < 99.5) return "Mythic";
+  return "Eternal";
+}
+
+function startClassicBattle() {
+  switchScreen("battleModeScreen", "battleScreen");
+  startBattle(); // twoja stara funkcja walki
+}
+
+function getRandomCard() {
+  const rarity = getRandomRarity();
+  const pool = allCards.filter(c => c.rarity === rarity);
+  const card = pool[Math.floor(Math.random() * pool.length)];
+
+  let existing = player.cards.find(c => c.name === card.name);
+  if (existing) existing.count++;
+  else player.cards.push({ ...card, count: 1 });
+
+  alert(`🎴 Wylosowano (${rarity}): ${card.name}`);
+  renderInventory();
+}
+
+/* ✅ TWORZENIE POSTACI */
+function createPlayer() {
+  let name = document.getElementById("playerName").value.trim();
+  if (!name) return alert("Wpisz nazwę!");
+  player.name = name;
+  player.coins = 100;
+  document.getElementById("nameDisplay").textContent = name;
+  document.getElementById("coinsDisplay").textContent = player.coins;
+  switchScreen("createScreen", "lobbyScreen");
+  saveGame();
+}
+
+function switchScreen(hide, show) {
+  document.getElementById(hide).classList.remove("active");
+  document.getElementById(show).classList.add("active");
+}
+
+function backToLobby() {
+  document.getElementById("coinsDisplay").textContent = player.coins;
+  switchScreen(
+    document.querySelector(".screen.active").id,
+    "lobbyScreen"
+  );
+}
+
+function enterSettings() {
+  switchScreen("lobbyScreen", "settingsScreen");
+}
+
+function resetGame() {
+  if (!confirm("Czy na pewno chcesz zresetować CAŁĄ grę?")) return;
+
+  // usuń zapis
+  localStorage.removeItem("save");
+
+  // wyczyść obiekt gracza
+  player = {
+    name: "",
+    coins: 0,
+    cards: [],
+    team: []
+  };
+
+  // wróć do ekranu tworzenia postaci
+  switchScreen(
+    document.querySelector(".screen.active").id,
+    "createScreen"
+  );
+
+  alert("✅ Gra została zresetowana!");
+}
+
+function goInventory() {
+  renderInventory();
+  renderTeam();
+  switchScreen("lobbyScreen", "inventoryScreen");
+}
+
+function renderInventory() {
+  let div = document.getElementById("inventory");
+  div.innerHTML = "";
+
+  player.cards.forEach(card => {
+    const base = allCards.find(c => c.name === card.name);
+    if (!base) return;
+
+    const sellValue = getSellValue(base.rarity);
+
+    let el = document.createElement("div");
+    el.className = "card";
+    el.setAttribute("data-rarity", base.rarity);
+    el.innerHTML = `
+      <img src="${base.img}">
+      <strong>${base.name}</strong><br>
+      Rarity: ${base.rarity}<br>
+      ❤️ ${base.hp} DMG ${base.damage}<br>
+      Speed: ${base.speed}s<br>
+      Super: ${base.super || "Brak"}<br>
+      Ilość: ${card.count}<br>
+      <button class='button' onclick="addToTeam('${base.name}')">Dodaj do drużyny</button>
+      <button class='button' style="background:#552222; border-color:red;" onclick="sellCard('${base.name}')">💰 Sprzedaj (${sellValue}c)</button>
+    `;
+    div.appendChild(el);
+  });
+}
+
+function getSellValue(rarity) {
+  switch (rarity) {
+    case "Basic": return 5;
+    case "Rare": return 12;
+    case "Epic": return 25;
+    case "Legendary": return 40;
+    case "Mythic": return 70;
+    case "Eternal": return 100;
+    case "Exclusive": return 150; // jeśli dodano nową rarowość
+    default: return 0;
+  }
+}
+
+function sellCard(name) {
+  const card = player.cards.find(c => c.name === name);
+  if (!card) return;
+
+  const base = allCards.find(c => c.name === name);
+  const sellValue = getSellValue(base.rarity);
+
+  if (!confirm(`Czy chcesz sprzedać 1x ${name} za ${sellValue} coins?`)) return;
+
+  // usuń 1 sztukę
+  card.count--;
+  if (card.count <= 0) {
+    player.cards = player.cards.filter(c => c.name !== name);
+    // usuń z drużyny jeśli była
+    player.team = player.team.filter(t => t !== name);
+  }
+
+  player.coins += sellValue;
+
+  alert(`💰 Sprzedano ${name} za ${sellValue} coins!`);
+  document.getElementById("coinsDisplay").textContent = player.coins;
+
+  saveGame();
+  renderInventory();
+  renderTeam();
+}
+
+function removeFromTeam(name) {
+  const index = player.team.indexOf(name);
+  if (index !== -1) {
+    player.team.splice(index, 1);
+    saveGame();
+    renderTeam();
+  }
+}
+
+function addToTeam(name) {
+  if (player.team.length >= 3) return alert("Masz już 3 karty!");
+
+  let c = player.cards.find(x => x.name === name);
+  if (!c) return;
+
+  // sprawdzenie ile razy dana karta już jest w drużynie
+  const inTeamCount = player.team.filter(x => x === name).length;
+  if (inTeamCount >= c.count) {
+    return alert(`Nie masz więcej sztuk ${c.name} do dodania!`);
+  }
+
+  player.team.push(c.name);
+  saveGame();
+  renderTeam();
+}
+
+function renderTeam() {
+  const t = document.getElementById("team");
+  t.innerHTML = "";
+
+  player.team.forEach(name => {
+    const c = allCards.find(x => x.name === name);
+    if (!c) return;
+
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerHTML = `
+      <h3>${c.name}</h3>
+      <p>Atak: ${c.damage}</p>
+      <p>Życie: ${c.hp}</p>
+      <p>Speed: ${c.speed}s</p>
+      <p>Super: ${c.super || "Brak"}</p>
+      <p>Rzadkość: ${c.rarity}</p>
+      <button onclick="removeFromTeam('${c.name}')">Usuń</button>
+    `;
+    t.appendChild(div);
+  });
+}
+
+function enterShop() {
+  switchScreen("lobbyScreen", "shopScreen");
+}
+
+function buyPack() {
+  if (player.coins >= 100) {
+    player.coins -= 100;
+    document.getElementById("coinsDisplay").textContent = player.coins; // poprawnie
+    getRandomCard();
+    updateQuestProgress("buyPack");
+    updateQuestProgress("collectCard");
+    saveGame();
   } else {
-    resultText = "🤝 Remis! Nic nie tracisz ani nie zyskujesz.";
+    alert("Masz za mało Coins!");
   }
-
-  // pokaz wynik
-  const resultDiv = document.createElement("div");
-  resultDiv.innerHTML = `<h2>${resultText}</h2>`;
-  container.appendChild(resultDiv);
-
-  // zapis danych
-  localStorage.setItem("inventory", JSON.stringify(inventory));
-  localStorage.setItem("coins", coins);
-  updateCoinsDisplay();
-
-  // odśwież listę kart po chwili
-  setTimeout(renderBattleInventory, 1500);
 }
 
-function addToInventory(cardImg) {
-  inventory[cardImg] = (inventory[cardImg] || 0) + 1;
-  localStorage.setItem("inventory", JSON.stringify(inventory));
-}
+function buySuperPack() {
+  if (player.coins >= 600) {
+    player.coins -= 600;
+    document.getElementById("coinsDisplay").textContent = player.coins;
 
-function resetInventory() {
-  if (confirm("Czy na pewno chcesz zresetować całą grę? 😢 Wszystkie karty i monety zostaną utracone!")) {
-    inventory = {};
-    coins = 1000;
+    const rarity = getSuperRarity();
+    const pool = allCards.filter(c => c.rarity === rarity);
+    const card = pool[Math.floor(Math.random() * pool.length)];
 
-    localStorage.setItem("inventory", JSON.stringify(inventory));
-    localStorage.setItem("coins", coins);
+    let existing = player.cards.find(c => c.name === card.name);
+    if (existing) existing.count++;
+    else player.cards.push({ ...card, count: 1 });
 
+    alert(`🎁 Otworzyłeś Super Pack!\nWylosowano (${rarity}): ${card.name}`);
+    updateQuestProgress("buyPack");
+    updateQuestProgress("collectCard");
     renderInventory();
-    updateCoinsDisplay();
-
-    document.getElementById("battleContainer").innerHTML = "";
-    document.getElementById("cardsContainer").innerHTML = "";
-
-    returnToMenu();
-
-    alert("✅ Gra została zresetowana! Otrzymujesz 1000 💵 na start.");
+    saveGame();
+  } else {
+    alert("Masz za mało Coins!");
   }
 }
 
-  </script>
+let battleRunning = false;
+
+function enterBattle() {
+  if (player.team.length === 0) return alert("Wybierz drużynę!");
+  switchScreen("lobbyScreen", "battleScreen");
+
+  const pSide = document.getElementById("playerSide");
+  const eSide = document.getElementById("enemySide");
+  pSide.innerHTML = "";
+  eSide.innerHTML = "";
+  document.getElementById("battleLog").textContent = "";
+
+  // Tworzymy jednostki gracza
+  playerUnits = player.team.map(name => {
+    const card = allCards.find(c => c.name === name);
+    const el = createBattleCard(card);
+    pSide.appendChild(el);
+    return { team: "player", card: { ...card, currentHP: card.hp }, element: el, target: null };
+  });
+
+  // Tworzymy jednostki przeciwnika
+  enemyUnits = [];
+  for (let i = 0; i < player.team.length; i++) {
+    const c = allCards[Math.floor(Math.random() * allCards.length)];
+    const el = createBattleCard(c);
+    eSide.appendChild(el);
+    enemyUnits.push({ team: "enemy", card: { ...c, currentHP: c.hp }, element: el });
+  }
+
+  // Dodajemy wybór celu dla każdej jednostki gracza
+  playerUnits.forEach((unit, idx) => {
+    const select = document.createElement("select");
+    select.innerHTML = enemyUnits.map((enemy, eidx) => `<option value="${eidx}">${enemy.card.name}</option>`).join("");
+    unit.element.appendChild(document.createElement("br"));
+    unit.element.appendChild(select);
+    unit.targetSelector = select; // zapamiętujemy selector
+  });
+
+  // Dodaj przycisk rozpoczęcia walki
+  const startBtn = document.createElement("button");
+  startBtn.textContent = "Rozpocznij walkę";
+  startBtn.className = "button";
+  startBtn.onclick = () => {
+    // ustawienie wybranych celów
+    playerUnits.forEach(unit => {
+      const targetIdx = parseInt(unit.targetSelector.value);
+      unit.target = enemyUnits[targetIdx];
+      // usuwamy selector po zatwierdzeniu
+      unit.element.removeChild(unit.targetSelector.previousSibling); // <br>
+      unit.element.removeChild(unit.targetSelector);
+    });
+    startBtn.remove(); // usuń przycisk po zatwierdzeniu
+    battleRunning = true;
+    playerUnits.forEach(u => autoAttack(u, enemyUnits));
+    enemyUnits.forEach(u => autoAttack(u, playerUnits));
+  };
+  pSide.appendChild(startBtn);
+}
+
+
+function checkPlayerDefeat() {
+  // jeśli wszystkie karty gracza mają 0 HP → przegrana
+  if (alive(playerUnits).length === 0) {
+    battleRunning = false;
+    document.getElementById("battleLog").textContent = "❌ Przegrałeś!";
+    return true;
+  }
+  return false;
+}
+
+function alive(arr) {
+  return arr.filter(x => x.card.currentHP > 0);
+}
+
+async function attack(attacker, enemies) {
+  const targets = alive(enemies);
+  if (!targets.length) return;
+
+  /* SUPER AOE */
+  if (attacker.card.super === "AOE") {
+    targets.forEach(t => {
+      t.card.currentHP -= attacker.card.damage;
+      if (t.card.currentHP < 0) t.card.currentHP = 0;
+      t.element.classList.add("hit");
+      setTimeout(() => t.element.classList.remove("hit"), 200);
+    });
+  }
+
+  /* SUPER SPLASH */
+  else if (attacker.card.super === "Splash") {
+    const main = targets[Math.floor(Math.random() * targets.length)];
+
+    main.card.currentHP -= attacker.card.damage;
+    if (main.card.currentHP < 0) main.card.currentHP = 0;
+
+    main.element.classList.add("hit");
+    setTimeout(() => main.element.classList.remove("hit"), 200);
+
+    targets.forEach(t => {
+      if (t !== main) {
+        t.card.currentHP -= Math.floor(attacker.card.damage / 2);
+        if (t.card.currentHP < 0) t.card.currentHP = 0;
+
+        t.element.classList.add("hit");
+        setTimeout(() => t.element.classList.remove("hit"), 200);
+      }
+    });
+  }
+
+  /* NORMALNY ATAK */
+  else {
+    const target = targets[Math.floor(Math.random() * targets.length)];
+    target.card.currentHP -= attacker.card.damage;
+    if (target.card.currentHP < 0) target.card.currentHP = 0;
+
+    target.element.classList.add("hit");
+    setTimeout(() => target.element.classList.remove("hit"), 200);
+  }
+
+  updateHPBars();
+
+  // ✅ AUTO PRZEGRANA GRACZA
+  if (attacker.team === "enemy") {
+    if (checkPlayerDefeat()) return;
+  }
+}
+
+function createBattleCard(card) {
+  const div = document.createElement("div");
+  div.className = "card";
+  div.innerHTML = `
+    <img src="${card.img}">
+    <strong>${card.name}</strong><br>
+    <div class="hp-bar-bg"><div class="hp-bar"></div></div>
+  `;
+  return div;
+}
+
+function updateHPBars() {
+
+  // aktualizacja pasków HP
+  [...playerUnits, ...enemyUnits].forEach(u => {
+    const bar = u.element.querySelector(".hp-bar");
+    const percent = Math.max(0, (u.card.currentHP / u.card.hp) * 100);
+    bar.style.width = percent + "%";
+
+    // opcjonalnie: zmiana koloru przy niskim HP
+    if (percent <= 30) bar.style.background = "#ff3333";
+    else bar.style.background = "#00ff88";
+  });
+}
+
+let playerUnits = [];
+let enemyUnits = [];
+
+async function startBattle() {
+  const pSide = document.getElementById("playerSide");
+  const eSide = document.getElementById("enemySide");
+  pSide.innerHTML = "";
+  eSide.innerHTML = "";
+  document.getElementById("battleLog").textContent = "";
+
+  playerUnits = player.team.map(name => {
+    const card = allCards.find(c => c.name === name);
+    const el = createBattleCard(card);
+    pSide.appendChild(el);
+    return { team: "player", card: { ...card, currentHP: card.hp }, element: el };
+  });
+
+  enemyUnits = [];
+  for (let i = 0; i < player.team.length; i++) {
+    const c = allCards[Math.floor(Math.random() * allCards.length)];
+    const el = createBattleCard(c);
+    eSide.appendChild(el);
+    enemyUnits.push({ team: "enemy", card: { ...c, currentHP: c.hp }, element: el });
+  }
+
+  battleRunning = true;
+
+  playerUnits.forEach(u => autoAttack(u, enemyUnits));
+  enemyUnits.forEach(u => autoAttack(u, playerUnits));
+}
+
+async function autoAttack(unit, enemies) {
+  while (battleRunning && unit.card.currentHP > 0 && alive(enemies).length > 0) {
+    await new Promise(res => setTimeout(res, unit.card.speed * 1000));
+
+    if (!battleRunning || unit.card.currentHP <= 0) break;
+
+    attack(unit, enemies);
+
+    // ✅ Jeśli drużyna przeciwnika zginęła — koniec
+    if (alive(enemies).length === 0) {
+      battleRunning = false;
+
+      if (unit.team === "player") {
+        player.coins += 10;
+        document.getElementById("coinsDisplay").textContent = player.coins;
+        updateQuestProgress("winBattle");
+        saveGame();
+      }
+
+      return;
+    }
+
+    // ✅ Jeśli wszystkie karty gracza mają 0 HP → przegrana
+    if (checkPlayerDefeat()) return;
+  }
+}
+window.onload = () => {
+  loadGame();
+
+  const data = localStorage.getItem("save");
+  if (data) {
+    switchScreen("createScreen", "lobbyScreen");
+  }
+};
+
+</script>
+
 </body>
 </html>
